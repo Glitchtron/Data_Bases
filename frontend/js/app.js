@@ -1,11 +1,13 @@
-import { db, myRentals, myCart, userAccount, currentUser, loginUser, logoutUser } from './api.js';
+import { db, myRentals, myCart, currentUser, loginUser, logoutUser, fetchMovies,fetchMyRentals,setCurrentUser,returnMovie,depositMoney } from './api.js';
 import { Navbar } from './components/Navbar.js';
 import { SearchBar } from './components/SearchBar.js';
 import { MovieCard } from './components/MovieCard.js';
 
+
 const app = document.getElementById('app');
 let currentView = 'catalog';
-let displayedMovies = [...db];
+let authView = 'login';
+let displayedMovies = []; 
 let currentMovieId = null;
 let isSidebarCollapsed = false;
 
@@ -17,13 +19,20 @@ const getCurrentDate = () => {
 };
 const formatDate = (date) => date.toLocaleDateString('pl-PL');
 
+// Inicjalizuje aplikację - pobiera filmy z bazy przed pierwszym renderem
+const initApp = async () => {
+    await fetchMovies(); // Pobranie filmów z API Node.js
+    displayedMovies = [...db]; // Przypisanie pobranych filmów do wyświetlenia
+    render();
+};
+
 const checkExpirations = () => {
     const today = getCurrentDate();
-    const expired = myRentals.filter(r => today > r.dueDateObj);
+    const expired = myRentals.filter(r => today > new Date(r.dueDateObj));
     
     if (expired.length > 0) {
         const titles = expired.map(e => e.title).join(', ');
-        alert(`Czas minął! Następujące filmy wygasły i zniknęły z Twojej biblioteki: ${titles}. Aby obejrzeć je ponownie, musisz je znów wypożyczyć.`);
+        alert(`Czas minął! Następujące filmy wygasły i zniknęły z Twojej biblioteki: ${titles}.`);
         
         expired.forEach(e => {
             const movie = db.find(m => m.id === e.id);
@@ -38,18 +47,39 @@ const checkExpirations = () => {
 
 const render = () => {
     if (!currentUser) {
-        app.innerHTML = `
-            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; width: 100%; background: var(--bg-dark);">
-                <div style="background: var(--sidebar-bg); padding: 40px; border-radius: 12px; width: 350px; text-align: center; border: 1px solid #252a34; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                    <img src="assets/logo.png" alt="Logo" style="width: 80px; margin-bottom: 20px;">
-                    <h2 style="margin-bottom: 30px; color: white;">Logowanie</h2>
-                    <input type="text" id="loginUsername" placeholder="Nazwa użytkownika" class="search-bar" style="margin-bottom: 15px; text-align: center;">
-                    <input type="password" id="loginPassword" placeholder="Hasło" class="search-bar" style="margin-bottom: 25px; text-align: center;">
-                    <button class="btn btn-primary" style="width: 100%; font-size: 16px; padding: 12px;" onclick="window.handleLogin()">ZALOGUJ SIĘ</button>
+        if (authView === 'login'){
+            app.innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; width: 100%; background: var(--bg-dark);">
+                    <div style="background: var(--sidebar-bg); padding: 40px; border-radius: 12px; width: 350px; text-align: center; border: 1px solid #252a34; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                        <img src="assets/logo.png" alt="Logo" style="width: 80px; margin-bottom: 20px;">
+                        <h2 style="margin-bottom: 30px; color: white;">Logowanie</h2>
+                        <input type="email" id="loginEmail" placeholder="Adres E-mail (z bazy)" class="search-bar" style="margin-bottom: 15px; text-align: center;">
+                        <input type="password" id="loginPassword" placeholder="Hasło" class="search-bar" style="margin-bottom: 25px; text-align: center;">
+                        <button class="btn btn-primary" style="width: 100%; font-size: 16px; padding: 12px;" onclick="window.handleLogin()">ZALOGUJ SIĘ</button>
+
+                        <a href="#" style="color: var(--accent); text-decoration: none; font-size: 14px;" onclick="window.switchAuthView('register')">Nie masz konta? Zarejestruj się!</a>
+                    </div>
                 </div>
-            </div>
-        `;
-        return;
+            `;
+        }
+        else if (authView == 'register'){
+            app.innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; width: 100%; background: var(--bg-dark);">
+                    <div style="background: var(--sidebar-bg); padding: 40px; border-radius: 12px; width: 350px; text-align: center; border: 1px solid #252a34; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                        <img src="assets/logo.png" alt="Logo" style="width: 80px; margin-bottom: 20px;">
+                        <h2 style="margin-bottom: 30px; color: white;">Rejestracja</h2>
+                        <input type="text" id="regFirstname" placeholder="Imię" class="search-bar" style="margin-bottom: 15px; text-align: center;">
+                        <input type="text" id="regLastname" placeholder="Nazwisko" class="search-bar" style="margin-bottom: 15px; text-align: center;">
+                        <input type="email" id="regEmail" placeholder="Adres E-mail" class="search-bar" style="margin-bottom: 15px; text-align: center;">
+                        <input type="password" id="regPassword" placeholder="Hasło" class="search-bar" style="margin-bottom: 25px; text-align: center;">
+                        <button class="btn btn-primary" style="width: 100%; font-size: 16px; padding: 12px; margin-bottom: 20px;" onclick="window.handleRegister()">ZAREJESTRUJ SIĘ</button>
+                        
+                        <a href="#" style="color: var(--text-muted); text-decoration: none; font-size: 14px;" onclick="window.switchAuthView('login')">Masz już konto? Zaloguj się</a>
+                    </div>
+                </div>
+            `;
+        }
+        return; 
     }
 
     let mainContent = '';
@@ -74,7 +104,7 @@ const render = () => {
                 <div class="details-info">
                     <h1>${movie.title}</h1>
                     <p><strong>Cena:</strong> <span style="color: var(--accent); font-weight: bold;">${movie.price} PLN / 7 dni</span></p>
-                    <p><strong>Gatunek:</strong> ${movie.genre} | <strong>Reżyser:</strong> ${movie.director}</p>
+                    <p><strong>Gatunek:</strong> ${movie.genre} | <strong>Reżyser:</strong> ${movie.director || 'Nieznany'}</p>
                     <p>${movie.description}</p>
                     <button class="btn btn-primary" style="width: 250px; margin-top:20px;" ${!movie.available ? 'disabled' : ''} onclick="window.addToCart(${movie.id})">
                         ${movie.available ? 'DODAJ DO KOSZYKA' : 'NIEDOSTĘPNY'}
@@ -117,6 +147,9 @@ const render = () => {
                                 <a href="${r.trailer}" target="_blank" class="btn btn-primary" style="text-decoration:none; display:inline-block; text-align:center; padding: 10px 20px;">
                                     ▶ Obejrzyj
                                 </a>
+                                <button class="btn btn-secondary" style="background: #e50914; color: white; border: none;" onclick="window.handleReturn(${r.id})">
+                                    ↩ Zwróć
+                                </button>
                             </td>
                         </tr>
                     `).join('')}
@@ -126,20 +159,56 @@ const render = () => {
     }
 
     app.innerHTML = `
-        ${Navbar(currentView, isSidebarCollapsed, userAccount, myCart.length, currentUser)}
+        ${Navbar(currentView, isSidebarCollapsed, myCart.length, currentUser)}
         <main class="main-content">${mainContent}</main>
     `;
 };
 
-window.handleLogin = () => {
-    const userValue = document.getElementById('loginUsername').value;
+//Logowanie wysyła zapytanie do bazy przez api.js
+window.handleLogin = async () => {
+    const emailValue = document.getElementById('loginEmail').value;
     const passValue = document.getElementById('loginPassword').value;
     
-    if(userValue.trim() !== '' && passValue.trim() !== '') {
-        loginUser(userValue);
-        render();
+    if(emailValue.trim() !== '' && passValue.trim() !== '') {
+        const result = await loginUser(emailValue, passValue); // Czekamy na odpowiedź z backendu
+        if (result.success) {
+            await fetchMovies(); // Odświeżamy filmy z bazy dla zalogowanego użytkownika
+            displayedMovies = [...db];
+            render();
+        } else {
+            alert(result.message); // Wyświetli komunikat np. "Błędny email lub hasło!"
+        }
     } else {
-        alert("Wprowadź nazwę użytkownika i hasło!");
+        alert("Wprowadź adres e-mail i hasło!");
+    }
+};
+
+// Funkcja do zmieniania widoku (logowanie <-> rejestracja)
+window.switchAuthView = (view) => {
+    authView = view;
+    render(); // Przerysowujemy ekran
+};
+
+// Funkcja obsługująca kliknięcie "ZAREJESTRUJ SIĘ"
+window.handleRegister = async () => {
+    const firstname = document.getElementById('regFirstname').value.trim();
+    const lastname = document.getElementById('regLastname').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+
+    if (firstname && lastname && email && password) {
+        // Wywołujemy funkcję z api.js, która uderza do server.js (/api/register)
+        const result = await registerUser(firstname, lastname, email, password);
+        
+        if (result.success) {
+            alert(result.message); // "Konto zostało utworzone!"
+            authView = 'login';    // Przełączamy użytkownika na okno logowania
+            render();
+        } else {
+            alert(result.message); // Np. "Ten email jest już zajęty!"
+        }
+    } else {
+        alert("Wypełnij wszystkie pola formularza!");
     }
 };
 
@@ -154,10 +223,18 @@ window.toggleSidebar = () => {
     render(); 
 };
 
-window.navigate = (view) => { 
+window.navigate = async (view) => { 
     currentView = view; 
     displayedMovies = [...db]; 
-    if(view === 'rentals') checkExpirations(); 
+    if(view === 'rentals' && currentUser){
+        try {
+            await fetchMyRentals(currentUser.member_no);
+            checkExpirations(); 
+        } catch (error) {
+            console.error("Błąd podczas ładowania wypożyczeń z bazy:", error);
+            alert("Nie udało się zaktualizować listy wypożyczeń, wyświetlam dane lokalne.");
+        }
+    }
     render(); 
 };
 
@@ -169,10 +246,13 @@ window.showDetails = (id) => {
 
 window.filterMovies = (query) => {
     const q = query.toLowerCase();
-    displayedMovies = db.filter(m => m.title.toLowerCase().includes(q) || m.director.toLowerCase().includes(q));
+    // Szukamy tylko po tytule i gatunku, bo te pola na pewno istnieją w bazie SQL
+    displayedMovies = db.filter(m => 
+        m.title.toLowerCase().includes(q) || 
+        m.genre.toLowerCase().includes(q)
+    );
     render();
 };
-
 window.addDay = () => { 
     simulatedDays += 1; 
     checkExpirations(); 
@@ -197,35 +277,136 @@ window.removeFromCart = (index) => {
     render();
 };
 
-window.checkout = () => {
-    const total = myCart.reduce((sum, item) => sum + item.price, 0);
-    if (userAccount.balance < total) {
-        alert(`Brak środków na koncie! Brakuje Ci ${total - userAccount.balance} PLN.`);
+window.checkout = async () => {
+    if (!currentUser) {
+        alert("Musisz być zalogowany, aby wypożyczyć filmy!");
+        window.navigate('catalog');
         return;
     }
 
-    userAccount.balance -= total;
+    const total = myCart.reduce((sum, item) => sum + item.price, 0);
+    if (currentUser.balance < total) {
+        alert(`Brak środków na koncie! Brakuje Ci ${total - currentUser.balance} PLN.`);
+        return;
+    }
 
-    myCart.forEach(item => {
-        const movie = db.find(m => m.id === item.id);
-        movie.copies -= 1;
-        if(movie.copies === 0) movie.available = false;
+    const checkoutBtn = document.querySelector("button[onclick='window.checkout()']");
+    if (checkoutBtn) {
+        checkoutBtn.disabled = true;
+        checkoutBtn.innerText = "PROCESOWANIE...";
+    }
 
-        const dueDateObj = getCurrentDate();
-        dueDateObj.setDate(dueDateObj.getDate() + 7); 
-        
-        myRentals.push({ 
-            id: item.id, 
-            title: item.title,
-            trailer: item.trailer,
-            dueDate: formatDate(dueDateObj),
-            dueDateObj: dueDateObj
-        });
-    });
+    const itemsToRent = [...myCart];
 
-    myCart.length = 0;
-    alert("Zakup udany! Filmy zostały dodane do Twojej biblioteki.");
-    window.navigate('rentals'); 
+    for (const item of itemsToRent) {
+        try {
+            const response = await fetch('http://localhost:3000/api/rent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    member_no: currentUser.member_no,
+                    movie_no: item.id
+                })
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                alert(`Błąd podczas wypożyczania "${item.title}": ${result.message}`);
+                if (checkoutBtn) {
+                    checkoutBtn.disabled = false;
+                    checkoutBtn.innerText = "ZAPŁAĆ I WYPOŻYCZ";
+                }
+                return;
+            }
+        } catch (err) {
+            console.error("Błąd komunikacji z serwerem:", err);
+            alert("Wystąpił błąd po stronie serwera. Spróbuj ponownie.");
+            if (checkoutBtn) {
+                checkoutBtn.disabled = false;
+                checkoutBtn.innerText = "ZAPŁAĆ I WYPOŻYCZ";
+            }
+            return;
+        }
+    }
+
+    // --- KLUCZOWE ZMIANY OD TEGO MIEJSCA ---
+    
+    // 1. Aktualizacja lokalnego salda
+    currentUser.balance -= total; 
+    
+    // 2. Zapisanie zmian do localStorage i bazy pamięci podręcznej w api.js
+    setCurrentUser(currentUser);
+    
+    // 3. Czyszczenie koszyka NATYCHMIAST (wtedy zniknie z ekranu)
+    myCart.length = 0; 
+    
+    // 4. Wyświetlenie komunikatu
+    alert("Zakup udany! Filmy zostały pomyślnie zarejestrowane w bazie danych.");
+    
+    // 5. Wymuszenie natychmiastowego przerysowania interfejsu (żeby Navbar pobrał nowe saldo i koszyk)
+    render(); 
+    
+    // 6. Pobranie filmów i przejście do zakładki rentals
+    await fetchMovies(); 
+    await window.navigate('rentals'); 
 };
 
-render();
+window.handleReturn = async (movieId) => {
+    if (!currentUser) return;
+
+    if (confirm("Czy na pewno chcesz zwrócić ten film?")) {
+        try {
+            const result = await returnMovie(currentUser.member_no, movieId);
+            
+            if (result.success) {
+                alert(result.message);
+                
+                // Odświeżamy dane: najpierw pobieramy listę filmów, potem nasze aktualne wypożyczenia
+                await fetchMovies();
+                await window.navigate('rentals');
+            } else {
+                alert("Błąd: " + result.message);
+            }
+        } catch (err) {
+            console.error("Błąd podczas zwrotu:", err);
+            alert("Wystąpił błąd serwera przy próbie zwrotu filmu.");
+        }
+    }
+};
+
+window.handleDeposit = async () => {
+    if (!currentUser) return;
+
+    const amountInput = prompt("Wpisz kwotę, jaką chcesz doładować konto (np. 50):", "50");
+    
+    // Walidacja: sprawdzamy czy użytkownik wpisał poprawną liczbę większą od zera
+    if (amountInput === null) return; // Użytkownik kliknął "Anuluj"
+    const amount = parseFloat(amountInput);
+    
+    if (isNaN(amount) || amount <= 0) {
+        alert("Wpisz poprawną kwotę!");
+        return;
+    }
+
+    try {
+        const result = await depositMoney(currentUser.member_no, amount);
+        
+        if (result.success) {
+            // Aktualizujemy saldo w naszym zalogowanym obiekcie na to, co zwróciła baza danych
+            currentUser.balance = result.newBalance;
+            setCurrentUser(currentUser);
+            
+            alert(`Konto zostało pomyślnie doładowane o ${amount} PLN!`);
+            
+            // Wymuszamy natychmiastowe przerysowanie Navbaru z nową kwotą
+            render();
+        } else {
+            alert("Nie udało się doładować konta.");
+        }
+    } catch (err) {
+        console.error("Błąd podczas doładowania konta:", err);
+        alert("Wystąpił błąd serwera przy próbie doładowania konta.");
+    }
+};
+initApp();
