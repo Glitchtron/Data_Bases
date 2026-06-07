@@ -5,6 +5,8 @@ export let myRentals = [];
 export let myCart = [];
 export let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
 export let popularMovies = [];
+export let myReservations = []; 
+
 
 // Funkcja pomocnicza, żeby app.js mógł bezpiecznie modyfikować i synchronizować zalogowanego użytkownika
 export const setCurrentUser = (user) => {
@@ -132,4 +134,19 @@ export const prolongLoan = async (memberNo, loanNo) => {
         body: JSON.stringify({ member_no: memberNo, loan_no: loanNo })
     });
     return await response.json();
+};
+
+
+// Pobieranie aktywnych rezerwacji z bazy
+export const fetchMyReservations = async (memberNo) => {
+    try {
+        const response = await fetch(`${API_URL}/reservations/${memberNo}`);
+        const data = await response.json();
+        myReservations.length = 0;
+        myReservations.push(...data);
+        return myReservations;
+    } catch (err) {
+        console.error("Nie udało się pobrać rezerwacji:", err);
+        return [];
+    }
 };

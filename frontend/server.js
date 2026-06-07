@@ -133,6 +133,33 @@ app.get('/api/rentals/:member_no', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+//POBIERANIE AKTYWNYCH REZERWACJI DLA DANEGO UŻYTKOWNIKA
+app.get('/api/reservations/:member_no', async (req, res) => {
+    const { member_no } = req.params;
+    try {
+        const result = await sql.query`
+            SELECT r.reservation_no, m.movie_no AS id, m.title, r.reservation_date 
+            FROM reservation r
+            JOIN movie m ON r.movie_no = m.movie_no
+            WHERE r.member_no = ${member_no} AND r.status = 'ACTIVE'
+            ORDER BY r.reservation_date ASC
+        `;
+        
+        const reservations = result.recordset.map(res => {
+            const rDate = new Date(res.reservation_date);
+            return {
+                id: res.id,
+                reservationNo: res.reservation_no,
+                title: res.title,
+                reservationDate: rDate.toLocaleDateString('pl-PL')
+            };
+        });
+        
+        res.json(reservations);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 //ZWROT FILMU
 app.post('/api/return', async (req, res) => {
     const { member_no, movie_no } = req.body;

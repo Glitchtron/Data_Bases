@@ -1,4 +1,6 @@
-import { db, myRentals, myCart, currentUser, loginUser, logoutUser, fetchMovies,fetchMyRentals,setCurrentUser,returnMovie,depositMoney,popularMovies,fetchPopularMovies,prolongLoan } from './api.js';
+import { db, myRentals, myCart, currentUser, loginUser, logoutUser, fetchMovies,fetchMyRentals,setCurrentUser,returnMovie,depositMoney,popularMovies,fetchPopularMovies,prolongLoan,
+    myReservations, fetchMyReservations
+ } from './api.js';
 import { Navbar } from './components/Navbar.js';
 import { SearchBar } from './components/SearchBar.js';
 import { MovieCard } from './components/MovieCard.js';
@@ -160,6 +162,24 @@ const render = () => {
                     `).join('')}
                 </table>
             `}
+
+            <h1 style="margin-top: 50px; margin-bottom: 20px;">Moje Rezerwacje (Oczekiwanie na zwrot)</h1>
+            ${myReservations.length === 0 ? '<p style="color: var(--text-muted)">Obecnie nie masz żadnych aktywnych rezerwacji.</p>' : `
+                <table style="border-collapse: collapse; background: #1a1e24;">
+                    <tr style="background: #252a34;"><th>Tytuł filmu</th><th>Data rezerwacji</th><th>Status</th></tr>
+                    ${myReservations.map(res => `
+                        <tr style="border-bottom: 1px solid #252a34;">
+                            <td><strong>${res.title}</strong></td>
+                            <td style="color: var(--text-muted)">${res.reservationDate}</td>
+                            <td>
+                                <span style="background: rgba(255, 193, 7, 0.1); color: #ffc107; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;">
+                                    ⏳ OCZEKUJE NA ZWROT KOPII
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `}
         `;
     } else if (currentView === 'popular') {
         mainContent = `
@@ -260,10 +280,11 @@ window.navigate = async (view) => {
     if(view === 'rentals' && currentUser){
         try {
             await fetchMyRentals(currentUser.member_no);
+            await fetchMyReservations(currentUser.member_no);
             checkExpirations(); 
         } catch (error) {
-            console.error("Błąd podczas ładowania wypożyczeń z bazy:", error);
-            alert("Nie udało się zaktualizować listy wypożyczeń, wyświetlam dane lokalne.");
+            console.error("Błąd podczas ładowania danych z bazy:", error);
+            alert("Nie udało się zaktualizować listy wypożyczeń/rezerwacji, wyświetlam dane lokalne.");
         }
     }
     if(view === 'popular'){
