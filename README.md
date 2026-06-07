@@ -5,6 +5,8 @@ Nasza Baza Danych służy do kompleksowego przetwarzania i zarządzania informac
 
 Link do google doc:
 https://docs.google.com/document/d/1bsGYqGPAeA7jZ_Z1xq45B1AlIc-8j53bVEgcdN1deYY/edit?usp=sharing
+Link do repozytorium:
+https://github.com/Glitchtron/Data_Bases.git
 ### Tabele w bazie danych:
 
 | Tabela | Opis |
