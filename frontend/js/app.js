@@ -183,7 +183,7 @@ const render = () => {
         `;
     } else if (currentView === 'popular') {
         mainContent = `
-            <h1 style="margin-bottom: 10px;" Najpopularniejsze Filmy</h1>
+            <h1 style="margin-bottom: 10px;"> Najpopularniejsze Filmy</h1>
             <p style="color: var(--text-muted); margin-bottom: 20px;">Ranking najchętniej wypożyczanych pozycji przez naszych użytkowników.</p>
             
             ${popularMovies.length === 0 ? '<p style="color: var(--text-muted)">Brak danych do wyświetlenia. Wypożycz coś pierwszy!</p>' : `
