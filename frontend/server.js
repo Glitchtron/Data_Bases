@@ -80,17 +80,24 @@ app.get('/api/movies', async (req, res) => {
     }
 });
 
-//WYPOŻYCZENIE FILMU
+//WYPOŻYCZENIE LUB REZERWACJA FILMU
 app.post('/api/rent', async (req, res) => {
     const { member_no, movie_no } = req.body;
     try {
         const pool = await sql.connect(dbConfig);
-        await pool.request()
+        const result = await pool.request()
             .input('member_no', sql.Int, member_no)
             .input('movie_no', sql.Int, movie_no)
             .execute('p_rent_movie');
         
-        res.json({ success: true, message: "Wypożyczono pomyślnie!" });
+        // Odczytujemy status zwrócony przez SELECT w procedurze
+        const status = result.recordset[0]?.result_status;
+
+        if (status === 'RESERVATION_CREATED') {
+            res.json({ success: true, status: 'RESERVATION', message: "Brak wolnych kopii. Film został pomyślnie zarezerwowany i opłacony!" });
+        } else {
+            res.json({ success: true, status: 'LOAN', message: "Film został pomyślnie wypożyczony!" });
+        }
     } catch (err) {
         res.status(400).json({ success: false, message: err.message });
     }

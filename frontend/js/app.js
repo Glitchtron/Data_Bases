@@ -303,11 +303,9 @@ window.addToCart = (id) => {
         alert("Ten film jest już w Twoim koszyku lub bibliotece!");
         return;
     }
-    if(movie.copies > 0) {
-        myCart.push({ id: movie.id, title: movie.title, price: movie.price, trailer: movie.trailer });
-        alert(`Dodano do koszyka: ${movie.title}`);
-        render();
-    }
+    myCart.push({ id: movie.id, title: movie.title, price: movie.price, trailer: movie.trailer });
+    alert(`Dodano do koszyka: ${movie.title}`);
+    render();
 };
 
 window.removeFromCart = (index) => {
@@ -335,6 +333,7 @@ window.checkout = async () => {
     }
 
     const itemsToRent = [...myCart];
+    let summaryMessages = [];
 
     for (const item of itemsToRent) {
         try {
@@ -350,13 +349,21 @@ window.checkout = async () => {
             const result = await response.json();
 
             if (!result.success) {
-                alert(`Błąd podczas wypożyczania "${item.title}": ${result.message}`);
+                alert(`Błąd podczas przetwarzania "${item.title}": ${result.message}`);
                 if (checkoutBtn) {
                     checkoutBtn.disabled = false;
                     checkoutBtn.innerText = "ZAPŁAĆ I WYPOŻYCZ";
                 }
                 return;
             }
+
+            // Zbieramy informacje o statusie pojedynczych filmów
+            if(result.status === 'RESERVATION') {
+                summaryMessages.push(`• "${item.title}" został zarezerwowany (środki pobrane, czekasz na zwrot).`);
+            } else {
+                summaryMessages.push(`• "${item.title}" został wypożyczony i dodany do biblioteki.`);
+            }
+
         } catch (err) {
             console.error("Błąd komunikacji z serwerem:", err);
             alert("Wystąpił błąd po stronie serwera. Spróbuj ponownie.");
@@ -367,29 +374,19 @@ window.checkout = async () => {
             return;
         }
     }
-
-    // --- KLUCZOWE ZMIANY OD TEGO MIEJSCA ---
     
-    // 1. Aktualizacja lokalnego salda
+    // Aktualizacja lokalnego stanu
     currentUser.balance -= total; 
-    
-    // 2. Zapisanie zmian do localStorage i bazy pamięci podręcznej w api.js
     setCurrentUser(currentUser);
-    
-    // 3. Czyszczenie koszyka NATYCHMIAST (wtedy zniknie z ekranu)
     myCart.length = 0; 
     
-    // 4. Wyświetlenie komunikatu
-    alert("Zakup udany! Filmy zostały pomyślnie zarejestrowane w bazie danych.");
+    // Wyświetlenie zbiorczego alertu dla klienta
+    alert(`Podsumowanie transakcji:\n${summaryMessages.join('\n')}`);
     
-    // 5. Wymuszenie natychmiastowego przerysowania interfejsu (żeby Navbar pobrał nowe saldo i koszyk)
     render(); 
-    
-    // 6. Pobranie filmów i przejście do zakładki rentals
     await fetchMovies(); 
     await window.navigate('rentals'); 
 };
-
 window.handleReturn = async (movieId) => {
     if (!currentUser) return;
 

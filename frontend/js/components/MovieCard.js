@@ -9,11 +9,11 @@ export const MovieCard = (movie) => `
             </span>
         </div>
         <div class="status ${movie.available ? 'available' : 'unavailable'}">
-            STATUS: ${movie.available ? `DOSTĘPNY (${movie.copies} szt.)` : 'WYPOŻYCZONY'}
+            STATUS: ${movie.available ? `DOSTĘPNY (${movie.copies} szt.)` : 'BRAK KOPII (REZERWACJA)'}
         </div>
         <div class="card-actions">
-            <button class="btn btn-primary" ${!movie.available ? 'disabled' : ''} onclick="window.addToCart(${movie.id})">
-                ${movie.available ? 'DO KOSZYKA' : 'BRAK KOPII'}
+            <button class="btn btn-primary" onclick="window.addToCart(${movie.id})">
+                ${movie.available ? 'DO KOSZYKA' : 'REZERWUJ (PRZEDPŁATA)'}
             </button>
             <button class="btn btn-secondary" onclick="window.showDetails(${movie.id})">OPIS</button>
         </div>
