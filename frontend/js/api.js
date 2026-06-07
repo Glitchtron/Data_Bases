@@ -124,3 +124,12 @@ export const fetchPopularMovies = async () => {
         return [];
     }
 };
+
+export const prolongLoan = async (memberNo, loanNo) => {
+    const response = await fetch(`${API_URL}/rentals/prolong`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_no: memberNo, loan_no: loanNo })
+    });
+    return await response.json();
+};

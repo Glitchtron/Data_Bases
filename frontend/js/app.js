@@ -1,4 +1,4 @@
-import { db, myRentals, myCart, currentUser, loginUser, logoutUser, fetchMovies,fetchMyRentals,setCurrentUser,returnMovie,depositMoney,popularMovies,fetchPopularMovies } from './api.js';
+import { db, myRentals, myCart, currentUser, loginUser, logoutUser, fetchMovies,fetchMyRentals,setCurrentUser,returnMovie,depositMoney,popularMovies,fetchPopularMovies,prolongLoan } from './api.js';
 import { Navbar } from './components/Navbar.js';
 import { SearchBar } from './components/SearchBar.js';
 import { MovieCard } from './components/MovieCard.js';
@@ -149,6 +149,9 @@ const render = () => {
                                 <a href="${r.trailer}" target="_blank" class="btn btn-primary" style="text-decoration:none; display:inline-block; text-align:center; padding: 10px 20px;">
                                     ▶ Obejrzyj
                                 </a>
+                                <button class="btn btn-secondary" style="background: #00adb5; color: white; border: none; margin-right: 5px;" onclick="window.handleProlong(${r.loanNo})">
+                                    ⏳ +1 Dzień (2 zł)
+                                </button>
                                 <button class="btn btn-secondary" style="background: #e50914; color: white; border: none;" onclick="window.handleReturn(${r.id})">
                                     ↩ Zwróć
                                 </button>
@@ -442,6 +445,36 @@ window.handleDeposit = async () => {
     } catch (err) {
         console.error("Błąd podczas doładowania konta:", err);
         alert("Wystąpił błąd serwera przy próbie doładowania konta.");
+    }
+};
+
+window.handleProlong = async (loanNo) => {
+    if (!currentUser) return;
+
+    if (currentUser.balance < 2.00) {
+        alert("Brak wystarczających środków na koncie! Przedłużenie kosztuje 2.00 PLN.");
+        return;
+    }
+
+    try {
+        const result = await prolongLoan(currentUser.member_no, loanNo);
+        
+        if (result.success) {
+            // Aktualizujemy lokalny balans użytkownika
+            currentUser.balance -= 2.00;
+            setCurrentUser(currentUser);
+
+            alert(result.message);
+
+            // Odświeżamy listę wypożyczeń z bazy, aby pobrać nową datę ze zaktualizowanego "due_date"
+            await fetchMyRentals(currentUser.member_no);
+            render(); // Przerysowanie widoku
+        } else {
+            alert("Błąd: " + result.message);
+        }
+    } catch (err) {
+        console.error("Błąd podczas przedłużania:", err);
+        alert("Wystąpił błąd serwera przy próbie przedłużenia filmu.");
     }
 };
 initApp();

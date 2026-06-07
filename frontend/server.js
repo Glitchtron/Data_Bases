@@ -112,6 +112,7 @@ app.get('/api/rentals/:member_no', async (req, res) => {
             const dDate = new Date(r.due_date);
             return {
                 id: r.id,
+                loanNo: r.loan_no,
                 title: r.title,
                 trailer: "https://www.youtube.com",
                 dueDate: dDate.toLocaleDateString('pl-PL'),
@@ -180,6 +181,23 @@ app.post('/api/user/deposit', async (req, res) => {
         res.json({ success: true, newBalance: result.recordset[0].balance });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+// PRZEDŁUŻENIE WYPOŻYCZENIA O 1 DZIEŃ
+app.post('/api/rentals/prolong', async (req, res) => {
+    const { member_no, loan_no } = req.body;
+    try {
+        const pool = await sql.connect(dbConfig);
+        await pool.request()
+            .input('memberId', sql.Int, member_no)
+            .input('loanId', sql.Int, loan_no)
+            .execute('p_prolong_loan');
+        
+        res.json({ success: true, message: "Pomyślnie przedłużono wypożyczenie o 1 dzień!" });
+    } catch (err) {
+        // Zwracamy błąd np. "Brak wystarczających środków na koncie!" z bazy danych
+        res.status(400).json({ success: false, message: err.message });
     }
 });
 // Udostępnianie plików frontendowych
