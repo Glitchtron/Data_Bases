@@ -75,7 +75,7 @@ https://docs.google.com/document/d/1bsGYqGPAeA7jZ_Z1xq45B1AlIc-8j53bVEgcdN1deYY/
 3. **Zintegrowany Koszyk i Rezerwacje (Przedpłata):** Możliwość zamówienia filmów dostępnych (od razu trafiają do biblioteki) oraz niedostępnych. W przypadku braku kopii system pobiera przedpłatę, a transakcja kończy się bezpiecznym zapisem do kolejki rezerwacji.
 4. **Automatyczny Zwrot i Obsługa Kolejki FIFO:** Gdy film jest zwracany procedurą `sp_return_movie`, system natychmiast sprawdza, czy ktoś go rezerwuje. Jeśli tak, film od razu zmienia właściciela, pomijając powrót do ogólnego katalogu.
 5. **Płatne Przedłużenia Czasu Wypożyczenia:** Możliwość mikropłatności (2.00 PLN) za pomocą dedykowanej procedury transakcyjnej `p_prolong_loan`, przesuwającej termin `due_date` o dokładnie 1 dobę.
-
+6. **Panel „Najpopularniejsze Filmy” (Ranking):** Dedykowana zakładka w menu aplikacji, która pozwala użytkownikom na wgląd w zestawienie najchętniej oglądanych pozycji. Interfejs dynamicznie (bez przeładowywania strony) pobiera dane z widoku bazodanowego `vw_popular_movies`. Jeśli baza zawiera dane o transakcjach, system generuje czytelną tabelę rankingową prezentującą pozycję na liście (od `#1` w górę), oryginalny tytuł filmu oraz łączną sumaryczną liczbę jego wypożyczeń (`total_loans`). W przypadku braku jakichkolwiek transakcji w systemie, widok automatycznie wyświetla komunikat o braku danych.
 ---
 
 ### Elementy Logiki Bazy Danych (Widoki i Procedury)
