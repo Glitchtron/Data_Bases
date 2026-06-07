@@ -1,4 +1,4 @@
-import { db, myRentals, myCart, currentUser, loginUser, logoutUser, fetchMovies,fetchMyRentals,setCurrentUser,returnMovie,depositMoney } from './api.js';
+import { db, myRentals, myCart, currentUser, loginUser, logoutUser, fetchMovies,fetchMyRentals,setCurrentUser,returnMovie,depositMoney,popularMovies,fetchPopularMovies } from './api.js';
 import { Navbar } from './components/Navbar.js';
 import { SearchBar } from './components/SearchBar.js';
 import { MovieCard } from './components/MovieCard.js';
@@ -28,7 +28,10 @@ const initApp = async () => {
 
 const checkExpirations = () => {
     const today = getCurrentDate();
-    const expired = myRentals.filter(r => today > new Date(r.dueDateObj));
+    const todayMs = today.getTime(); // Aktualny czas w milisekundach
+    
+    // Filtrujemy na podstawie czystych liczb (ms)
+    const expired = myRentals.filter(r => r.dueDateTimestamp && todayMs > r.dueDateTimestamp);
     
     if (expired.length > 0) {
         const titles = expired.map(e => e.title).join(', ');
@@ -39,12 +42,11 @@ const checkExpirations = () => {
             if(movie) { movie.copies += 1; movie.available = true; }
         });
         
-        const validRentals = myRentals.filter(r => today <= r.dueDateObj);
+        const validRentals = myRentals.filter(r => !r.dueDateTimestamp || todayMs <= r.dueDateTimestamp);
         myRentals.length = 0; 
         myRentals.push(...validRentals); 
     }
 };
-
 const render = () => {
     if (!currentUser) {
         if (authView === 'login'){
@@ -103,7 +105,7 @@ const render = () => {
                 <img src="${movie.poster}" class="details-poster">
                 <div class="details-info">
                     <h1>${movie.title}</h1>
-                    <p><strong>Cena:</strong> <span style="color: var(--accent); font-weight: bold;">${movie.price} PLN / 7 dni</span></p>
+                    <p><strong>Cena:</strong> <span style="color: var(--accent); font-weight: bold;">${movie.price} PLN / 14 dni</span></p>
                     <p><strong>Gatunek:</strong> ${movie.genre} | <strong>Reżyser:</strong> ${movie.director || 'Nieznany'}</p>
                     <p>${movie.description}</p>
                     <button class="btn btn-primary" style="width: 250px; margin-top:20px;" ${!movie.available ? 'disabled' : ''} onclick="window.addToCart(${movie.id})">
@@ -153,6 +155,32 @@ const render = () => {
                             </td>
                         </tr>
                     `).join('')}
+                </table>
+            `}
+        `;
+    } else if (currentView === 'popular') {
+        mainContent = `
+            <h1 style="margin-bottom: 10px;" Najpopularniejsze Filmy</h1>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Ranking najchętniej wypożyczanych pozycji przez naszych użytkowników.</p>
+            
+            ${popularMovies.length === 0 ? '<p style="color: var(--text-muted)">Brak danych do wyświetlenia. Wypożycz coś pierwszy!</p>' : `
+                <table style="width: 100%; border-collapse: collapse; background: var(--sidebar-bg); border-radius: 8px; overflow: hidden;">
+                    <thead>
+                        <tr style="background: #1f232b; text-align: left;">
+                            <th style="padding: 15px;">Pozycja</th>
+                            <th style="padding: 15px;">Tytuł filmu</th>
+                            <th style="padding: 15px; text-align: center;">Łączna liczba wypożyczeń</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${popularMovies.map((m, index) => `
+                            <tr style="border-bottom: 1px solid #252a34;">
+                                <td style="padding: 15px; font-weight: bold; color: var(--accent);">#${index + 1}</td>
+                                <td style="padding: 15px;"><strong>${m.title}</strong></td>
+                                <td style="padding: 15px; text-align: center; color: #00adb5; font-weight: bold;">${m.total_loans}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
                 </table>
             `}
         `;
@@ -233,6 +261,13 @@ window.navigate = async (view) => {
         } catch (error) {
             console.error("Błąd podczas ładowania wypożyczeń z bazy:", error);
             alert("Nie udało się zaktualizować listy wypożyczeń, wyświetlam dane lokalne.");
+        }
+    }
+    if(view === 'popular'){
+        try {
+            await fetchPopularMovies();
+        } catch (error) {
+            console.error("Błąd podczas ładowania raportu popularności:", error);
         }
     }
     render(); 

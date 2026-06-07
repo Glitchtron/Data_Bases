@@ -105,45 +105,50 @@ app.get('/api/rentals/:member_no', async (req, res) => {
             FROM loan l
             JOIN copy c ON l.copy_no = c.copy_no
             JOIN movie m ON c.movie_no = m.movie_no
-            WHERE l.member_no = ${member_no}
+            WHERE l.member_no = ${member_no} AND l.return_date IS NULL
         `;
         
-        // Mapowanie na format czytelny dla frontendu
-        const rentals = result.recordset.map(r => ({
-            id: r.id,
-            title: r.title,
-            trailer: "https://www.youtube.com", // Zaślepka linku
-            dueDate: new Date(r.due_date).toLocaleDateString('pl-PL'),
-            dueDateObj: new Date(r.due_date)
-        }));
+        const rentals = result.recordset.map(r => {
+            const dDate = new Date(r.due_date);
+            return {
+                id: r.id,
+                title: r.title,
+                trailer: "https://www.youtube.com",
+                dueDate: dDate.toLocaleDateString('pl-PL'),
+                // Wysyłamy timestamp (liczbę ms), eliminując problemy transformacji JSON
+                dueDateTimestamp: dDate.getTime() 
+            };
+        });
         
         res.json(rentals);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
-
 //ZWROT FILMU
 app.post('/api/return', async (req, res) => {
     const { member_no, movie_no } = req.body;
     try {
-        
-        // 1. Znajdujemy kopię powiązaną z tym wypożyczeniem
+        // 1. Znajdujemy aktywne wypożyczenie (gdzie return_date JEST NULL)
         const loanCheck = await sql.query`
-            SELECT TOP 1 copy_no FROM loan 
-            WHERE member_no = ${member_no} AND copy_no IN (SELECT copy_no FROM copy WHERE movie_no = ${movie_no})
+            SELECT TOP 1 l.loan_no FROM loan l
+            JOIN copy c ON l.copy_no = c.copy_no
+            WHERE l.member_no = ${member_no} 
+              AND c.movie_no = ${movie_no} 
+              AND l.return_date IS NULL
         `;
 
         if (loanCheck.recordset.length === 0) {
             return res.status(400).json({ success: false, message: "Nie znaleziono takiego aktywnego wypożyczenia." });
         }
 
-        const copyNo = loanCheck.recordset[0].copy_no;
+        const loanNo = loanCheck.recordset[0].loan_no;
 
-        // 2. Usuwamy wypożyczenie (lub archiwizujemy)
-        await sql.query`DELETE FROM loan WHERE member_no = ${member_no} AND copy_no = ${copyNo}`;
-
-        await sql.query`UPDATE copy SET isAvailable = 1 WHERE copy_no = ${copyNo}`;
+        // 2. Wywołujemy Twoją procedurę sp_return_movie
+        const pool = await sql.connect(dbConfig);
+        await pool.request()
+            .input('loan_no', sql.Int, loanNo)
+            .execute('sp_return_movie'); // Wywołanie procedury z bazy danych
 
         res.json({ success: true, message: "Film został pomyślnie zwrócony!" });
     } catch (err) {

@@ -16,6 +16,9 @@ export const Navbar = (currentView, isCollapsed, cartCount, user) => `
             <button class="nav-btn ${currentView === 'rentals' ? 'active' : ''}" onclick="window.navigate('rentals')">
                 <span class="nav-text">Moje Wypożyczenia</span>
             </button>
+            <button class="nav-btn ${currentView === 'popular' ? 'active' : ''}" onclick="window.navigate('popular')">
+                <span>Popularne</span>
+            </button>
         </nav>
         
         <div style="margin-top: auto; padding: 15px; border-top: 1px solid #252a34; display: ${isCollapsed ? 'none' : 'block'};">

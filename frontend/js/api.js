@@ -4,6 +4,7 @@ export let db = [];
 export let myRentals = [];
 export let myCart = [];
 export let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+export let popularMovies = [];
 
 // Funkcja pomocnicza, żeby app.js mógł bezpiecznie modyfikować i synchronizować zalogowanego użytkownika
 export const setCurrentUser = (user) => {
@@ -106,4 +107,20 @@ export const depositMoney = async (memberNo, amount) => {
         body: JSON.stringify({ member_no: memberNo, amount: parseFloat(amount) })
     });
     return await response.json();
+};
+
+
+
+// Pobieranie najpopularniejszych filmów do raportu
+export const fetchPopularMovies = async () => {
+    try {
+        const response = await fetch(`${API_URL}/reports/popular`);
+        const data = await response.json();
+        popularMovies.length = 0;
+        popularMovies.push(...data);
+        return popularMovies;
+    } catch (err) {
+        console.error("Nie udało się pobrać raportu popularności:", err);
+        return [];
+    }
 };
