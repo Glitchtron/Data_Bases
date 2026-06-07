@@ -12,6 +12,7 @@ let authView = 'login';
 let displayedMovies = []; 
 let currentMovieId = null;
 let isSidebarCollapsed = false;
+let currentSearchQuery = ''; 
 
 let simulatedDays = 0;
 const getCurrentDate = () => {
@@ -94,7 +95,7 @@ const render = () => {
                 <h1>Katalog Filmów</h1>
                 <p style="color: var(--text-muted);">Dzisiaj: <strong>${formatDate(getCurrentDate())}</strong></p>
             </div>
-            ${SearchBar()}
+            ${SearchBar(currentSearchQuery)}
             <div class="grid">
                 ${displayedMovies.map(m => MovieCard(m)).join('')}
             </div>
@@ -275,7 +276,8 @@ window.toggleSidebar = () => {
 };
 
 window.navigate = async (view) => { 
-    currentView = view; 
+    currentView = view;
+    currentSearchQuery = '';
     displayedMovies = [...db]; 
     if(view === 'rentals' && currentUser){
         try {
@@ -304,13 +306,25 @@ window.showDetails = (id) => {
 };
 
 window.filterMovies = (query) => {
+    currentSearchQuery = query;
     const q = query.toLowerCase();
-    // Szukamy tylko po tytule i gatunku, bo te pola na pewno istnieją w bazie SQL
     displayedMovies = db.filter(m => 
         m.title.toLowerCase().includes(q) || 
         m.genre.toLowerCase().includes(q)
     );
     render();
+
+    // Przywracamy kursor do inputa, który przed chwilą został nadpisany
+    // --- TUTAJ JEST KLUCZOWA NAPRAWA ---
+    // Szukamy nowo wyrenderowanego pola w strukturze strony
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.focus(); // Wkładamy kursor z powrotem do pola
+        
+        // Przesuwamy kursor na sam koniec tekstu, żeby nie pisać "od tyłu"
+        const length = searchInput.value.length;
+        searchInput.setSelectionRange(length, length);
+    }
 };
 window.addDay = () => { 
     simulatedDays += 1; 
